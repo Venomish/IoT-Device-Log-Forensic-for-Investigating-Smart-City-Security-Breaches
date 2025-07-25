@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Insight</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        .log-entry {
+            transition: all 0.3s ease-out;
+        }
+        .hover\:scale-102:hover {
+            transform: scale(1.02);
+        }
+        .log-entry:hover {
+            background-color: #f3f4f6;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .anomaly {
+            border-left: 4px solid #ef4444;
+        }
+        .normal {
+            border-left: 4px solid #10b981;
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .scrollable-table {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-purple-50">
+    <!-- Authentication Container -->
+    <div id="auth-container" class="flex items-center justify-center min-h-screen">
+        <div class="w-full max-w-md bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <h2 class="text-2xl font-bold text-center mb-6">IoT Insight</h2>
+            <div id="login-form">
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="login-email">
+                        Email
+                    </label>
+                    <input class="border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400" id="login-email" type="email" placeholder="Email">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="login-password">
+                        Password
+                    </label>
+                    <input class="border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400" id="login-password" type="password" placeholder="Password">
+                </div>
+                <div class="flex items-center justify-between mb-4">
+                    <button id="login-btn" onclick="handleLogin()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200 transform hover:scale-102 w-full">
+                        Sign In
+                    </button>
+                </div>
+                <p class="text-center text-gray-500 text-sm">
+                    Don't have an account? <button id="show-signup" class="text-blue-500 hover:text-blue-800">Sign Up</button>
+                </p>
+            </div>
+            
+            <div id="signup-form" class="hidden">
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="signup-name">
+                        Full Name
+                    </label>
+                    <input class="bg-white/5 backdrop-blur-sm border border-white/20 rounded-xl w-full py-3 px-4 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-blue-400" id="signup-name" type="text" placeholder="Full Name">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="signup-email">
+                        Email
+                    </label>
+                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="signup-email" type="email" placeholder="Email">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="signup-password">
+                        Password
+                    </label>
+                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="signup-password" type="password" placeholder="Password">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="signup-confirm">
+                        Confirm Password
+                    </label>
+                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="signup-confirm" type="password" placeholder="Confirm Password">
+                </div>
+                <div class="flex items-center justify-between mb-4">
+                    <button id="signup-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full">
+                        Create Account
+                    </button>
+                </div>
+                <p class="text-center text-gray-500 text-sm">
+                    Already have an account? <button id="show-login" class="text-blue-500 hover:text-blue-800">Sign In</button>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application Container -->
+    <div id="app-container" class="hidden">
+        <!-- Header -->
+        <header class="bg-white shadow-md rounded-b-lg">
+            <div class="max-w-7xl mx-auto px-6 py-5 flex justify-between items-center">
+                <h1 class="text-xl font-bold text-gray-900">IoT Insight</h1>
+                <div class="flex items-center space-x-4">
+                    <button id="generate-report" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                        Generate Report
+                    </button>
+                    <button id="logout-btn" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+            <!-- Dashboard Overview -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+                    <h3 class="text-lg font-medium mb-2">Total Log Entries</h3>
+                    <p id="total-logs" class="text-3xl font-bold text-blue-600">0</p>
+                </div>
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Potential Anomalies</h3>
+                    <p id="anomalies" class="text-3xl font-bold text-red-600">0</p>
+                </div>
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Devices Monitored</h3>
+                    <p id="devices-count" class="text-3xl font-bold text-green-600">0</p>
+                </div>
+            </div>
+
+            <!-- Visualization Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Log Activity Timeline</h3>
+                    <canvas id="timeline-chart" height="200"></canvas>
+                </div>
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Anomaly Distribution</h3>
+                    <canvas id="anomaly-chart" height="200"></canvas>
+                </div>
+            </div>
+
+            <!-- Log Analysis Section -->
+            <div class="bg-white shadow rounded-lg overflow-hidden mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900">IoT Device Logs</h3>
+                </div>
+                <div class="p-6">
+                    <div class="mb-4 flex flex-wrap gap-2">
+                        <select id="device-filter" class="border rounded px-3 py-2">
+                            <option value="all">All Devices</option>
+                        </select>
+                        <select id="severity-filter" class="border rounded px-3 py-2">
+                            <option value="all">All Severities</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                            <option value="normal">Normal</option>
+                        </select>
+                        <select id="protocol-filter" class="border rounded px-3 py-2">
+                            <option value="all">All Protocols</option>
+                        </select>
+                        <input type="text" id="log-search" placeholder="Search logs..." class="border rounded px-3 py-2 flex-grow">
+                    </div>
+                    <div class="scrollable-table">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-100 rounded-t-lg">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Timestamp</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Device</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Protocol</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source IP</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attack Type</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Severity</th>
+                                </tr>
+                            </thead>
+                            <tbody id="log-entries" class="bg-white divide-y divide-gray-200">
+                                <!-- Log entries will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Report Modal -->
+    <div id="report-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-gray-200">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-lg font-medium text-gray-900">Forensic Analysis Report</h3>
+                <button id="close-report" class="text-gray-500 hover:text-gray-700">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div id="report-content" class="p-6">
+                <!-- Report content will be inserted here -->
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
+                <button id="download-report" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Download PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Database Simulation
+        const db = {
+            users: [
+                { id: 1, name: "Admin", email: "admin@iot.com", password: "admin123" }
+            ],
+            logs: [],
+            devices: ["Traffic Camera", "Environmental Sensor", "Smart Streetlight", "Surveillance Camera", "Traffic Signal"],
+            attackTypes: ["DDoS", "DoS", "Data Exfiltration", "Keylogging", "OS Scan", "Brute Force", "SQL Injection", "XSS", "Man-in-the-Middle", "Port Scanning", "Firmware Tampering"],
+            iotProtocols: ["MQTT", "CoAP", "HTTP", "AMQP", "LoRaWAN"]
+        };
+
+        // Load data from the provided datasets
+        async function loadLogData() {
+            try {
+                // Sample data structure matching IoT-23 dataset format
+                db.logs = [
+                    { timestamp: new Date(Date.now() - 86400000), device: "Traffic Camera", type: "Connection", message: "Device scanning for open ports", severity: "high", attackType: "OS Scan" },
+                    { timestamp: new Date(Date.now() - 7200000), device: "Environmental Sensor", type: "Data", message: "Unusual data transfer pattern detected", severity: "high", attackType: "Data Exfiltration" },
+                    { timestamp: new Date(Date.now() - 3600000), device: "Smart Streetlight", type: "Alert", message: "High volume of malformed packets", severity: "high", attackType: "DDoS" },
+                    { timestamp: new Date(Date.now() - 1800000), device: "Surveillance Camera", type: "Error", message: "Multiple authentication failures", severity: "high", attackType: "Brute Force" },
+                    { timestamp: new Date(Date.now() - 900000), device: "Traffic Signal", type: "Alert", message: "Unauthorized command injection attempt", severity: "high", attackType: "Command Injection" },
+                    { timestamp: new Date(Date.now() - 600000), device: "Traffic Camera", type: "Alert", message: "Keystroke patterns detected in network traffic", severity: "medium", attackType: "Keylogging" },
+                    { timestamp: new Date(Date.now() - 300000), device: "Environmental Sensor", type: "Alert", message: "Service overload detected", severity: "high", attackType: "DoS" },
+                    { timestamp: new Date(), device: "Surveillance Camera", type: "Alert", message: "Multiple concurrent failed login attempts from same IP", severity: "high", attackType: "Brute Force" }
+                ];
+
+                // Add more simulated log entries
+                for (let i = 0; i < 50; i++) {
+                    const hours = Math.floor(Math.random() * 24);
+                    const minutes = Math.floor(Math.random() * 60);
+                    const severity = Math.random() > 0.7 ? 
+                        (Math.random() > 0.5 ? "high" : "medium") : 
+                        (Math.random() > 0.8 ? "low" : "normal");
+                    
+                    db.logs.push({
+                        timestamp: new Date(Date.now() - (hours * 3600000 + minutes * 60000)),
+                        device: db.devices[Math.floor(Math.random() * db.devices.length)],
+                        type: ["Connection", "Data", "Alert", "Error", "Protocol"][Math.floor(Math.random() * 5)],
+                        protocol: db.iotProtocols[Math.floor(Math.random() * db.iotProtocols.length)],
+                        message: `[${db.attackTypes[Math.floor(Math.random() * db.attackTypes.length)]}] ${["unusual traffic pattern", "authentication failure", "protocol violation", "data exfiltration attempt", "firmware tampering"][Math.floor(Math.random() * 5)]}`,
+                        sourceIP: `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+                        severity: severity
+                    });
+                }
+
+                // Sort logs by timestamp
+                db.logs.sort((a, b) => b.timestamp - a.timestamp);
+                
+                updateDashboard();
+                updateLogTable();
+                initCharts();
+            } catch (error) {
+                console.error("Error loading log data:", error);
+            }
+        }
+
+        // Authentication Functions
+        function handleLogin() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            const user = db.users.find(u => u.email === email && u.password === password);
+            if (user) {
+                document.getElementById('auth-container').classList.add('hidden');
+                document.getElementById('app-container').classList.remove('hidden');
+                document.getElementById('app-container').classList.add('animate-fade-in');
+                loadLogData();
+            } else {
+                alert('Invalid credentials!');
+            }
+        }
+
+        function handleSignup() {
+            const name = document.getElementById('signup-name').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const confirm = document.getElementById('signup-confirm').value;
+            
+            if (password !== confirm) {
+                alert("Passwords don't match!");
+                return;
+            }
+            
+            if (db.users.some(u => u.email === email)) {
+                alert("Email already registered!");
+                return;
+            }
+            
+            db.users.push({ id: db.users.length + 1, name, email, password });
+            alert("Account created successfully! Please login.");
+            document.getElementById('signup-form').classList.add('hidden');
+            document.getElementById('login-form').classList.remove('hidden');
+        }
+
+        // Dashboard Functions
+        function updateDashboard() {
+            document.getElementById('total-logs').textContent = db.logs.length;
+            document.getElementById('anomalies').textContent = db.logs.filter(log => log.severity !== 'normal').length;
+            document.getElementById('devices-count').textContent = db.devices.length;
+        }
+
+        function updateLogTable(filter = null) {
+            const logEntries = document.getElementById('log-entries');
+            logEntries.innerHTML = '';
+            
+            const deviceFilter = document.getElementById('device-filter').value;
+            const severityFilter = document.getElementById('severity-filter').value;
+            const searchQuery = document.getElementById('log-search').value.toLowerCase();
+            
+            let filteredLogs = db.logs;
+            if (deviceFilter !== 'all') {
+                filteredLogs = filteredLogs.filter(log => log.device === deviceFilter);
+            }
+            if (severityFilter !== 'all') {
+                filteredLogs = filteredLogs.filter(log => log.severity === severityFilter);
+            }
+            if (searchQuery) {
+                filteredLogs = filteredLogs.filter(log => 
+                    log.device.toLowerCase().includes(searchQuery) || 
+                    log.type.toLowerCase().includes(searchQuery) || 
+                    log.message.toLowerCase().includes(searchQuery)
+                );
+            }
+            
+            filteredLogs.forEach(log => {
+                const row = document.createElement('tr');
+                row.className = `log-entry ${log.severity !== 'normal' ? 'anomaly' : 'normal'}`;
+                
+                const severityColors = {
+                    high: 'bg-red-100 text-red-800',
+                    medium: 'bg-yellow-100 text-yellow-800',
+                    low: 'bg-blue-100 text-blue-800',
+                    normal: 'bg-green-100 text-green-800'
+                };
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${log.timestamp.toLocaleString()}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        ${log.device}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${log.protocol}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${log.sourceIP}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${log.attackType || 'Normal'}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-500">
+                        ${log.message}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${severityColors[log.severity]}">
+                            ${log.severity.charAt(0).toUpperCase() + log.severity.slice(1)}
+                        </span>
+                    </td>
+                `;
+                logEntries.appendChild(row);
+            });
+        }
+
+        function initCharts() {
+            // Timeline Chart
+            const timelineCtx = document.getElementById('timeline-chart').getContext('2d');
+            const hourlyCounts = Array(24).fill(0);
+            db.logs.forEach(log => {
+                const hour = log.timestamp.getHours();
+                hourlyCounts[hour]++;
+            });
+            
+            new Chart(timelineCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
+                    datasets: [{
+                        label: 'Logs per hour',
+                        data: hourlyCounts,
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            // Anomaly Chart
+            const anomalyCtx = document.getElementById('anomaly-chart').getContext('2d');
+            const anomalyCounts = {
+                high: db.logs.filter(log => log.severity === 'high').length,
+                medium: db.logs.filter(log => log.severity === 'medium').length,
+                low: db.logs.filter(log => log.severity === 'low').length,
+                normal: db.logs.filter(log => log.severity === 'normal').length
+            };
+            
+            new Chart(anomalyCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['High Severity', 'Medium Severity', 'Low Severity', 'Normal'],
+                    datasets: [{
+                        data: [anomalyCounts.high, anomalyCounts.medium, anomalyCounts.low, anomalyCounts.normal],
+                        backgroundColor: [
+                            'rgb(239, 68, 68)',
+                            'rgb(245, 158, 11)',
+                            'rgb(59, 130, 246)',
+                            'rgb(16, 185, 129)'
+                        ],
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateReport() {
+            const reportContent = document.getElementById('report-content');
+            reportContent.innerHTML = `
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold mb-2">Smart City IoT Forensic Analysis Report</h1>
+                    <p class="text-gray-600">Generated on: ${new Date().toLocaleString()}</p>
+                </div>
+                
+                <div class="mb-6">
+                    <h2 class="text-xl font-semibold mb-3">Summary</h2>
+                    <div class="grid grid-cols-2 gap-4 mb-3">
+                        <div>
+                            <p class="font-medium">Total Logs Analyzed:</p>
+                            <p>${db.logs.length}</p>
+                        </div>
+                        <div>
+                            <p class="font-medium">Time Period:</p>
+                            <p>${db.logs[db.logs.length-1].timestamp.toLocaleDateString()} to ${db.logs[0].timestamp.toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="font-medium">Devices Monitored:</p>
+                            <p>${db.devices.length}</p>
+                        </div>
+                        <div>
+                            <p class="font-medium">Potential Security Incidents:</p>
+                            <p>${db.logs.filter(log => log.severity !== 'normal').length}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-6">
+                    <h2 class="text-xl font-semibold mb-3">Key Findings</h2>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li>${db.logs.filter(log => log.severity === 'high').length} high severity security events detected</li>
+                        <li>Most common device issues: ${db.logs.filter(log => log.type === 'Error').length} errors reported</li>
+                        <li>Peak log activity at ${Array.from({ length: 24 }, (_, i) => `${i}:00`)[db.logs.reduce((maxIndex, _, i, arr) => arr[i].timestamp.getHours() === maxIndex ? i : maxIndex, 0)]}:00</li>
+                    </ul>
+                </div>
+                
+                <div class="mb-6">
+                    <h2 class="text-xl font-semibold mb-3">Recommendations</h2>
+                    <ol class="list-decimal pl-5 space-y-2">
+                        <li>Investigate high severity alerts immediately</li>
+                        <li>Review device access controls for unauthorized access attempts</li>
+                        <li>Implement additional monitoring for devices with frequent errors</li>
+                        <li>Schedule maintenance for devices reporting firmware issues</li>
+                    </ol>
+                </div>
+                
+                <div>
+                    <h2 class="text-xl font-semibold mb-3">Detailed Log Analysis</h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Device</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Severity</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                ${db.logs.slice(0, 10).map(log => `
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${log.timestamp.toLocaleString()}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${log.device}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${log.severity === 'high' ? 'bg-red-100 text-red-800' : log.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' : log.severity === 'low' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
+                                                ${log.severity.charAt(0).toUpperCase() + log.severity.slice(1)}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 text-sm text-gray-500">${log.message}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('report-modal').classList.remove('hidden');
+        }
+
+        function downloadPDF() {
+            alert('PDF generation would be implemented in a production environment using a library like jsPDF or a server-side component.');
+        }
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize device filter options
+            const deviceFilter = document.getElementById('device-filter');
+            // Initialize device and protocol filters
+            db.devices.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device;
+                option.textContent = device;
+                deviceFilter.appendChild(option);
+            });
+            
+            const protocolFilter = document.getElementById('protocol-filter');
+            db.iotProtocols.forEach(protocol => {
+                const option = document.createElement('option');
+                option.value = protocol;
+                option.textContent = protocol;
+                protocolFilter.appendChild(option);
+            });
+
+            // Authentication events
+            document.getElementById('login-btn').addEventListener('click', handleLogin);
+            document.getElementById('signup-btn').addEventListener('click', handleSignup);
+            document.getElementById('show-signup').addEventListener('click', () => {
+                document.getElementById('login-form').classList.add('hidden');
+                document.getElementById('signup-form').classList.remove('hidden');
+            });
+            document.getElementById('show-login').addEventListener('click', () => {
+                document.getElementById('signup-form').classList.add('hidden');
+                document.getElementById('login-form').classList.remove('hidden');
+            });
+            document.getElementById('logout-btn').addEventListener('click', () => {
+                document.getElementById('app-container').classList.add('hidden');
+                document.getElementById('auth-container').classList.remove('hidden');
+            });
+
+            // Log filter events
+            document.getElementById('device-filter').addEventListener('change', () => updateLogTable());
+            document.getElementById('severity-filter').addEventListener('change', () => updateLogTable());
+            document.getElementById('log-search').addEventListener('input', () => updateLogTable());
+
+            // Report events
+            document.getElementById('generate-report').addEventListener('click', generateReport);
+            document.getElementById('close-report').addEventListener('click', () => {
+                document.getElementById('report-modal').classList.add('hidden');
+            });
+            document.getElementById('download-report').addEventListener('click', downloadPDF);
+
+            // Auto-login for demo purposes
+            document.getElementById('login-email').value = 'admin@iot.com';
+            document.getElementById('login-password').value = 'admin123';
+        });
+    </script>
+</body>
+</html>
