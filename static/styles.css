@@ -1,0 +1,28 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.severity-high { 
+    background-color: #fee2e2; 
+    color: #991b1b; 
+}
+
+.severity-medium { 
+    background-color: #fef3c7; 
+    color: #92400e; 
+}
+
+.severity-low { 
+    background-color: #dcfce7; 
+    color: #166534; 
+}
